@@ -15,19 +15,26 @@ cd backends
 bal run hospitalservice.jar
 ```
 
-### 2) Start the HTTP service
+### 2) Push the df package to the local repository
+
+```
+cd eggplant
+bal pack;bal push --repository=local
+```
+
+### 3) Start the HTTP service
 
 ```bash
 cd http_sample
 bal run
 ```
 
-### 3) Send a request
+### 4) Send a request
 ```sh
 curl -X POST --data @http_sample/request.json http://localhost:8290/healthcare/categories/surgery/reserve --header "Content-Type:application/json"
 ```
 
-### 4) Verify the response
+### 5) Verify the response
 ```json
 {
   "appointmentNo": 3,
