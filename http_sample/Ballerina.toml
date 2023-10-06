@@ -1,0 +1,14 @@
+[package]
+org = "sameera"
+name = "http_sample"
+version = "0.1.0"
+distribution = "2201.8.0"
+
+[build-options]
+observabilityIncluded = true
+
+[[dependency]]
+org = "sameera"
+name = "dataflow"
+version = "0.1.0"
+repository = "local"
