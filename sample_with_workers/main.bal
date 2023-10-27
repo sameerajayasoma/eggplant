@@ -82,73 +82,68 @@ function initializeHttpClient(string url) returns http:Client|error => new (url)
 service /healthcare on new http:Listener(9095) {
 
     resource function post categories/[string category]/reserve(ReservationRequest payload) returns PaymentResponse|error {
-        return runIntegration(category, payload);
+        return runIntegration(category, payload.cloneReadOnly());
     }
 }
 
-function runIntegration(string category, ReservationRequest payload) returns PaymentResponse|error {
+isolated function runIntegration(string doctorCategory, readonly & ReservationRequest requestPayload) returns PaymentResponse|error {
 
     // @foo:LogMediator
     worker LogHospitalDetails {
-        ReservationRequest requestPayload = <- function;
         log:printInfo("ReservationRequest123", payload = requestPayload);
     }
 
     // @foo:DataMapper
-    worker CreateAppoinmentPayload {
-        ReservationRequest requestPayload = <- function;
-        AppointmentRequest appoinmentReq = appoinmentPayloadMapper(requestPayload);
-        appoinmentReq -> CreateAppoinment;
+    worker CreateAppointmentPayload {
+        AppointmentRequest AppointmentReq = AppointmentPayloadMapper(requestPayload);
+        AppointmentReq -> CreateAppointment;
     }
 
     // @foo:HttpPostMediator
-    worker CreateAppoinment returns error? {
+    worker CreateAppointment returns error? {
         // [JBUG] Multiple Receive actions are not yet supported
-        // AppointmentRequest appoinmentReq = <- {function, CreateAppoinmentPayload};
+        // AppointmentRequest AppointmentReq = <- {function, CreateAppointmentPayload};
 
-        string doctorCategory = <- function;
-        ReservationRequest requestPayload = <- function;
-        AppointmentRequest appoinmentReq = <- CreateAppoinmentPayload;
+        AppointmentRequest AppointmentReq = <- CreateAppointmentPayload;
 
-        Appointment appt = check hospitalServicesEP->/[requestPayload.hospital_id]/categories/[doctorCategory]/reserve.post(appoinmentReq);
+        Appointment appt = check hospitalServicesEP->/[requestPayload.hospital_id]/categories/[doctorCategory]/reserve.post(AppointmentReq);
 
-        appt -> LogAppoinment;
-        appt -> GetAppoinmentFee;
+        appt -> LogAppointment;
+        appt -> GetAppointmentFee;
     }
 
     // @foo:LogMediator
-    worker LogAppoinment returns error? {
-        Appointment appoinment = check <- CreateAppoinment;
-        log:printInfo("Appoinment", payload = appoinment);
+    worker LogAppointment returns error? {
+        Appointment Appointment = check <- CreateAppointment;
+        log:printInfo("Appointment", payload = Appointment);
     }
 
     // @foo:HttpGetMediator
-    worker GetAppoinmentFee returns error? {
-        ReservationRequest reservationReq = <- function;
-        string hospitalId = reservationReq.hospital_id;
+    worker GetAppointmentFee returns error? {
+        string hospitalId = requestPayload.hospital_id;
 
-        Appointment appoinment = check <- CreateAppoinment;
-        int apptNumber = appoinment.appointmentNumber;
+        Appointment Appointment = check <- CreateAppointment;
+        int apptNumber = Appointment.appointmentNumber;
 
         ChannelingFee fee = check hospitalServicesEP->/[hospitalId]/categories/appointments/[apptNumber]/fee;
 
         fee -> LogChannelingFee;
-        reservationReq -> CreatePaymentRequest;
-        appoinment -> CreatePaymentRequest;
+        requestPayload -> CreatePaymentRequest;
+        Appointment -> CreatePaymentRequest;
         fee -> CreatePaymentRequest;
     }
 
     // @foo:LogMediator
     worker LogChannelingFee returns error? {
-        ChannelingFee fee = check <- GetAppoinmentFee;
+        ChannelingFee fee = check <- GetAppointmentFee;
         log:printInfo("ChannelingFee", payload = fee);
     }
 
     // @foo:DataMapper
     worker CreatePaymentRequest returns error? {
-        ReservationRequest reservationReq = check <- GetAppoinmentFee;
-        Appointment appointment = check <- GetAppoinmentFee;
-        ChannelingFee channelingFee = check <- GetAppoinmentFee;
+        ReservationRequest reservationReq = check <- GetAppointmentFee;
+        Appointment appointment = check <- GetAppointmentFee;
+        ChannelingFee channelingFee = check <- GetAppointmentFee;
         PaymentSettlement paymentSettlementReq = check paymentRequestPayloadMapper(reservationReq, appointment, channelingFee);
         paymentSettlementReq -> MakePayment;
     }
@@ -168,16 +163,11 @@ function runIntegration(string category, ReservationRequest payload) returns Pay
         log:printInfo("PaymentResponse", payload = response);
     }
 
-    payload -> LogHospitalDetails;
-    payload -> CreateAppoinmentPayload;
-    category -> CreateAppoinment;
-    payload -> CreateAppoinment;
-    payload -> GetAppoinmentFee;
-
-    return <- MakePayment;
+    PaymentResponse resp = check <- MakePayment;
+    return resp;
 }
 
-isolated function appoinmentPayloadMapper(ReservationRequest reservationRequest) returns AppointmentRequest => {
+isolated function AppointmentPayloadMapper(ReservationRequest reservationRequest) returns AppointmentRequest => {
     patient: {
         name: reservationRequest.patient.name,
         dob: reservationRequest.patient.dob,
