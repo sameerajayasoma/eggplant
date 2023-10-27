@@ -63,20 +63,30 @@ type PaymentSettlement record {|
     string card_number;
 |};
 
+type PaymentResponse record {
+    int appointmentNo;
+    string doctorName;
+    string patient;
+    int actualFee;
+    int discount;
+    decimal discounted;
+    string paymentID;
+    string status;
+};
+
 final http:Client hospitalServicesEP = check initializeHttpClient(hospitalServicesBackend);
 final http:Client paymentEP = check initializeHttpClient(paymentBackend);
-
 
 function initializeHttpClient(string url) returns http:Client|error => new (url);
 
 service /healthcare on new http:Listener(9095) {
 
-    resource function post categories/[string category]/reserve(ReservationRequest payload, http:Caller caller) returns error? {
-        check runIntegration(category, payload, caller);
+    resource function post categories/[string category]/reserve(ReservationRequest payload) returns PaymentResponse|error {
+        return runIntegration(category, payload);
     }
 }
 
-function runIntegration(string category, ReservationRequest payload, http:Caller caller) returns error? {
+function runIntegration(string category, ReservationRequest payload) returns PaymentResponse|error {
 
     // @foo:LogMediator
     worker LogHospitalDetails {
@@ -100,23 +110,11 @@ function runIntegration(string category, ReservationRequest payload, http:Caller
         ReservationRequest requestPayload = <- function;
         AppointmentRequest appoinmentReq = <- CreateAppoinmentPayload;
 
-        Appointment|error appt = hospitalServicesEP->/[requestPayload.hospital_id]/categories/[doctorCategory]/reserve.post(appoinmentReq);
-        if appt is error {
-            // [JBUG]worker send statement position not supported yet, must be a top level statement in a worker(BCE2073)
-            // appt -> HandleResereAppoinmentError;
-            log:printError("Error occurred when making an appoinment", 'error = appt);
-            // TODO: Use caller to respond with error
-            return appt;
-        }
+        Appointment appt = check hospitalServicesEP->/[requestPayload.hospital_id]/categories/[doctorCategory]/reserve.post(appoinmentReq);
 
         appt -> LogAppoinment;
         appt -> GetAppoinmentFee;
     }
-
-    // worker HandleResereAppoinmentError {
-    //     error err = <- CreateAppoinment;
-    //     log:printError("Error occurred", 'error = err);
-    // }
 
     // @foo:LogMediator
     worker LogAppoinment returns error? {
@@ -132,11 +130,8 @@ function runIntegration(string category, ReservationRequest payload, http:Caller
         Appointment appoinment = check <- CreateAppoinment;
         int apptNumber = appoinment.appointmentNumber;
 
-        ChannelingFee|error fee = hospitalServicesEP->/[hospitalId]/categories/appointments/[apptNumber]/fee;
-        if fee is error {
-            log:printError("Error occurred when getting appoinment fee", 'error = fee);
-            return fee;
-        }
+        ChannelingFee fee = check hospitalServicesEP->/[hospitalId]/categories/appointments/[apptNumber]/fee;
+
         fee -> LogChannelingFee;
         reservationReq -> CreatePaymentRequest;
         appoinment -> CreatePaymentRequest;
@@ -161,23 +156,15 @@ function runIntegration(string category, ReservationRequest payload, http:Caller
     // @foo:HttpPostMediator
     worker MakePayment returns error? {
         PaymentSettlement paymentSettlementReq = check <- CreatePaymentRequest;
-        json|error response = paymentEP->/.post(paymentSettlementReq);
-        if response is error {
-            log:printError("Error occurred when making payment", 'error = response);
-            return response;
-        } else {
-            error? callerError = caller->respond(response);
-            if callerError is error {
-                log:printError("Error occurred when responding to the client", 'error = callerError);
-                return callerError;
-            }
-        }
+        PaymentResponse response = check paymentEP->/.post(paymentSettlementReq);
+
         response -> LogPaymentResponse;
+        response -> function;
     }
 
     // @foo:LogMediator
     worker LogPaymentResponse returns error? {
-        json response = check <- MakePayment;
+        PaymentResponse response = check <- MakePayment;
         log:printInfo("PaymentResponse", payload = response);
     }
 
@@ -187,12 +174,7 @@ function runIntegration(string category, ReservationRequest payload, http:Caller
     payload -> CreateAppoinment;
     payload -> GetAppoinmentFee;
 
-    // Need to figure how to wait for the integration to complete
-    error? result = wait LogPaymentResponse;
-    if result is error {
-        log:printError("Error occurred ", 'error = result);
-        return result;
-    }   
+    return <- MakePayment;
 }
 
 isolated function appoinmentPayloadMapper(ReservationRequest reservationRequest) returns AppointmentRequest => {
