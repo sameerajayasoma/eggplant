@@ -91,8 +91,8 @@ service /healthcare on new http:Listener(9095) {
 
         // @foo:DataMapper
         worker CreateAppointmentPayload {
-            AppointmentRequest AppointmentReq = AppointmentPayloadMapper(requestPayload);
-            AppointmentReq -> CreateAppointment;
+            AppointmentRequest appointmentReq = AppointmentPayloadMapper(requestPayload);
+            appointmentReq -> CreateAppointment;
         }
 
         // @foo:HttpPostMediator
@@ -100,8 +100,8 @@ service /healthcare on new http:Listener(9095) {
             // [JBUG] Multiple Receive actions are not yet supported
             // AppointmentRequest AppointmentReq = <- {function, CreateAppointmentPayload};
 
-            AppointmentRequest AppointmentReq = <- CreateAppointmentPayload;
-            Appointment appt = check hospitalServicesEP->/[requestPayload.hospital_id]/categories/[doctorCategory]/reserve.post(AppointmentReq);
+            AppointmentRequest appointmentReq = <- CreateAppointmentPayload;
+            Appointment appt = check hospitalServicesEP->/[requestPayload.hospital_id]/categories/[doctorCategory]/reserve.post(appointmentReq);
 
             appt -> LogAppointment;
             appt -> GetAppointmentFee;
@@ -109,8 +109,8 @@ service /healthcare on new http:Listener(9095) {
 
         // @foo:LogMediator
         worker LogAppointment returns error? {
-            Appointment Appointment = check <- CreateAppointment;
-            log:printInfo("Appointment", payload = Appointment);
+            Appointment appointment = check <- CreateAppointment;
+            log:printInfo("Appointment", payload = appointment);
         }
 
         // @foo:HttpGetMediator
@@ -182,3 +182,55 @@ function paymentRequestPayloadMapper(ReservationRequest reservationReq, Appointm
     confirmed: false,
     card_number: reservationReq.patient.cardNo
 };
+
+
+    // resource function get doctors/[string doctorCategory]() returns Doctor[]|error {
+    //    worker RouteBasedOnCategory returns error? {
+    //         var goLeft = doctorCategory == "Oncologist";     
+    //         goLeft -> SendLeft;
+    //         !goLeft -> SendRight;       
+    //    }
+
+    //    worker SendLeft returns error? {
+    //         boolean 'continue =  check <- RouteBasedOnCategory;
+    //    }
+
+    //    worker SendRight returns error? {
+    //         boolean 'continue = check <- RouteBasedOnCategory;
+    //    }
+
+    //    return error("error");
+    // }
+
+    // resource function post doctors(Doctor[] doctors) returns error? {
+    //     worker IterateDoctors {
+    //         foreach var doctor in doctors {
+    //             doctor -> PayDoctor;
+    //         }
+    //     }
+
+    //     worker PayDoctor returns error? {
+    //         Doctor doctor = <- IterateDoctors;
+    //         // doctor -> function;
+    //     }
+    // }
+    // function payDoctor(Doctor doctor) returns error? {
+    //     // data flow graph
+    // }
+
+
+//     function foo(Rec1 rec1, Rec2 rec2) returns Rec2 {
+//     Rec2 rec = {...rec2};
+//     rec.s = rec1.s;
+//     return rec;
+// }
+
+// type Rec1 record {|
+//     int i;
+//     string s;
+// |};
+
+// type Rec2 record {|
+//     float f;
+//     string s;
+// |};

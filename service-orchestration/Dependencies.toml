@@ -33,7 +33,7 @@ dependencies = [
 [[package]]
 org = "ballerina"
 name = "constraint"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
 	{org = "ballerina", name = "jballerina.java"}
 ]
@@ -285,7 +285,7 @@ modules = [
 
 [[package]]
 org = "sameera"
-name = "sample_with_workers"
+name = "service_orchestration"
 version = "0.1.0"
 dependencies = [
 	{org = "ballerina", name = "http"},
@@ -293,6 +293,6 @@ dependencies = [
 	{org = "ballerinai", name = "observe"}
 ]
 modules = [
-	{org = "sameera", packageName = "sample_with_workers", moduleName = "sample_with_workers"}
+	{org = "sameera", packageName = "service_orchestration", moduleName = "service_orchestration"}
 ]
 

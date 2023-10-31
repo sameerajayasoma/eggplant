@@ -1,6 +1,6 @@
 [package]
 org = "sameera"
-name = "sample_with_workers"
+name = "service_orchestration"
 version = "0.1.0"
 distribution = "2201.8.2"
 
