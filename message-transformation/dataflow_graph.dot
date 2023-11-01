@@ -1,0 +1,7 @@
+digraph "DataflowGraph" {
+node [shape=record];
+"FunctionStart" -> "TransformToHospitalReservation";
+"PostHospitalReservation" -> "FunctionEnd";
+"PostHospitalReservation" -> "LogReservationResponse";
+"TransformToHospitalReservation" -> "PostHospitalReservation";
+}

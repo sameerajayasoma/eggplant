@@ -1,5 +1,6 @@
 import ballerina/http;
 import ballerina/log;
+import samjs/eggplant as _;
 
 type HealthcareReservation record {|
     string firstName;
