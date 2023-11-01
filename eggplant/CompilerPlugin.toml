@@ -1,0 +1,6 @@
+[plugin]
+id = "eggplant-compiler-plugin"
+class = "io.samjs.ballerina.eggplant.plugin.CompilerPlugin"
+
+[[dependency]]
+path = "../compiler-plugin/df-graph-analyzer/build/libs/df-graph-analyzer.jar"

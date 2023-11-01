@@ -1,0 +1,9 @@
+[package]
+org = "samjs"
+name = "eggplant"
+version = "0.1.0"
+distribution = "2201.8.2"
+authors = ["Sameera Jayasoma"]
+license = ["Apache-2.0"]
+
+
