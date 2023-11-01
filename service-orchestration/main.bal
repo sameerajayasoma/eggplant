@@ -1,5 +1,6 @@
 import ballerina/http;
 import ballerina/log;
+import samjs/eggplant as _;
 
 configurable string hospitalServicesBackend = "http://localhost:9090";
 configurable string paymentBackend = "http://localhost:9090/healthcare/payments";
@@ -83,7 +84,7 @@ service /healthcare on new http:Listener(9095) {
 
     resource function post categories/[string doctorCategory]/reserve(ReservationRequest payload) returns PaymentResponse|error {
         final var requestPayload = payload.cloneReadOnly();
-
+        
         // @foo:LogMediator
         worker LogHospitalDetails {
             log:printInfo("ReservationRequest123", payload = requestPayload);
@@ -122,12 +123,12 @@ service /healthcare on new http:Listener(9095) {
 
             ChannelingFee fee = check hospitalServicesEP->/[hospitalId]/categories/appointments/[apptNumber]/fee;
 
-            fee -> LogChannelingFee;
+            fee -> LogAppointmentFee;
             [appointment, fee] -> CreatePaymentRequest;
         }
 
         // @foo:LogMediator
-        worker LogChannelingFee returns error? {
+        worker LogAppointmentFee returns error? {
             ChannelingFee fee = check <- GetAppointmentFee;
             log:printInfo("ChannelingFee", payload = fee);
         }

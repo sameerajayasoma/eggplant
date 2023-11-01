@@ -3,6 +3,10 @@ This sample is based on the following integration tutorial in [ballerina.io](htt
 
 [https://ballerina.io/learn/integration-tutorials/service-orchestration/#complete-source](https://ballerina.io/learn/integration-tutorials/service-orchestration/#complete-source)
 
+## Simple visualization of the integration
+
+<img src="./dataflow_graph.png">
+
 ## Steps to run the sample
 
 ### 1) Start backend services

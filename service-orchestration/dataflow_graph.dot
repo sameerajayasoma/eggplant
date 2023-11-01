@@ -1,0 +1,13 @@
+digraph "DataflowGraph" {
+node [shape=record];
+"GetAppointmentFee" -> "LogAppointmentFee";
+"GetAppointmentFee" -> "CreatePaymentRequest";
+"FunctionStart" -> "LogHospitalDetails";
+"FunctionStart" -> "CreateAppointmentPayload";
+"CreatePaymentRequest" -> "MakePayment";
+"CreateAppointment" -> "GetAppointmentFee";
+"CreateAppointment" -> "LogAppointment";
+"MakePayment" -> "FunctionEnd";
+"MakePayment" -> "LogPaymentResponse";
+"CreateAppointmentPayload" -> "CreateAppointment";
+}
