@@ -1,0 +1,13 @@
+digraph "DataflowGraph" {
+node [shape=record];
+"CreateOutgoingPayload" -> "RouteToEndpointBasedOnHospitalId";
+"RouteToEndpointBasedOnHospitalId" -> "PostRequestToGrandOakEp";
+"RouteToEndpointBasedOnHospitalId" -> "PostRequestToClemencyEP";
+"RouteToEndpointBasedOnHospitalId" -> "PostRequestToPineValleyEP";
+"PostRequestToGrandOakEp" -> "CollectResponse";
+"FunctionStart" -> "CreateOutgoingPayload";
+"FunctionStart" -> "LogReservationRequestDetails";
+"PostRequestToClemencyEP" -> "CollectResponse";
+"PostRequestToPineValleyEP" -> "CollectResponse";
+"CollectResponse" -> "FunctionEnd";
+}

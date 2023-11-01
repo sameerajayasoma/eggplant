@@ -1,5 +1,6 @@
 import ballerina/http;
 import ballerina/log;
+import samjs/eggplant as _;
 
 configurable int port = 8290;
 
@@ -58,10 +59,10 @@ type ReservationResponse record {|
 
 service /healthcare on new http:Listener(port) {
 
-    resource function post categories/[string category]/reserve(ReservationRequest payload)
+    isolated resource function post categories/[string category]/reserve(ReservationRequest payload)
             returns ReservationResponse|http:NotFound|http:InternalServerError {
 
-        var reservationReq = payload.cloneReadOnly();
+        final var reservationReq = payload.cloneReadOnly();
 
         worker LogReservationRequestDetails {
             log:printInfo("Routing reservation request",
@@ -95,12 +96,7 @@ service /healthcare on new http:Listener(port) {
             }
 
             // Trigger all the workers in parallel
-            [
-                isGrandOak,
-                isClemency,
-                isPineValley,
-                reservation
-            ] -> PostRequestToGrandOakEp;
+            [isGrandOak, isClemency, isPineValley, reservation] -> PostRequestToGrandOakEp;
             [isGrandOak, isClemency, isPineValley, reservation] -> PostRequestToClemencyEP;
             [isGrandOak, isClemency, isPineValley, reservation] -> PostRequestToPineValleyEP;
         }
@@ -154,7 +150,7 @@ service /healthcare on new http:Listener(port) {
     }
 }
 
-function transformReservationRequest(ReservationRequest reservationRequest) returns Reservation => {
+isolated function transformReservationRequest(ReservationRequest reservationRequest) returns Reservation => {
     patient: reservationRequest.patient,
     appointment_date: reservationRequest.appointment_date,
     doctor: reservationRequest.doctor,
