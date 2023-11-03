@@ -1,19 +1,6 @@
 package io.samjs.ballerina.eggplant.plugin;
 
-import io.ballerina.compiler.syntax.tree.AsyncSendActionNode;
-import io.ballerina.compiler.syntax.tree.BlockStatementNode;
-import io.ballerina.compiler.syntax.tree.CheckExpressionNode;
-import io.ballerina.compiler.syntax.tree.ExpressionNode;
-import io.ballerina.compiler.syntax.tree.ExpressionStatementNode;
-import io.ballerina.compiler.syntax.tree.NamedWorkerDeclarationNode;
-import io.ballerina.compiler.syntax.tree.NamedWorkerDeclarator;
-import io.ballerina.compiler.syntax.tree.Node;
-import io.ballerina.compiler.syntax.tree.ReceiveActionNode;
-import io.ballerina.compiler.syntax.tree.SimpleNameReferenceNode;
-import io.ballerina.compiler.syntax.tree.StatementNode;
-import io.ballerina.compiler.syntax.tree.SyncSendActionNode;
-import io.ballerina.compiler.syntax.tree.SyntaxKind;
-import io.ballerina.compiler.syntax.tree.VariableDeclarationNode;
+import io.ballerina.compiler.syntax.tree.*;
 import io.ballerina.projects.DependencyGraph;
 import io.ballerina.projects.DependencyGraph.DependencyGraphBuilder;
 import io.ballerina.projects.plugins.AnalysisTask;
@@ -23,6 +10,10 @@ import io.ballerina.projects.util.ProjectPaths;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileAttribute;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringJoiner;
 
 public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisContext> {
 
@@ -43,6 +34,40 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    private String getFileNamePrefix(NamedWorkerDeclarator namedWorkerDeclarator) {
+        FunctionDefinitionNode funcDefNode = (FunctionDefinitionNode) namedWorkerDeclarator.parent().parent();
+
+        StringJoiner joiner = new StringJoiner("-");
+        if (funcDefNode.parent() instanceof ServiceDeclarationNode svcDeclNode) {
+            joiner.add(convertNodeListToFileNamePart(svcDeclNode.absoluteResourcePath()));
+        }
+        String funcName = funcDefNode.functionName().toSourceCode();
+        joiner.add(convertToFileNamePart(funcName));
+        joiner.add(convertNodeListToFileNamePart(funcDefNode.relativeResourcePath()));
+        return joiner.toString();
+    }
+
+    private String convertNodeListToFileNamePart(NodeList<Node> nodeList) {
+        StringJoiner joiner = new StringJoiner("-");
+        for (Node node : nodeList) {
+            String path = node.toSourceCode();
+            if (path.equals("/")) {
+                continue;
+            }
+            path = convertToFileNamePart(path);
+            joiner.add(path);
+        }
+
+        return joiner.toString();
+    }
+
+    private String convertToFileNamePart(String part) {
+        part = part.replace("[", "");
+        part = part.replace("]", "");
+        part = part.replace(" ", "");
+        return part;
     }
 
     private void serializeDependencyGraph(SyntaxNodeAnalysisContext analysisContext) throws Exception {
@@ -86,9 +111,13 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
             }
         }
 
+        String fileNamePrefix = getFileNamePrefix(namedWorkerDeclarator);
         String serializedDotGraph = dotGraphSerializer.toString();
         Path packageRootPath = ProjectPaths.packageRoot(analysisContext.currentPackage().project().sourceRoot());
-        Path graphFilePath = packageRootPath.resolve(DATAFLOW_GRAPH_DOT_FILENAME);
+        Path graphFilePath = packageRootPath.resolve(fileNamePrefix + "-" + DATAFLOW_GRAPH_DOT_FILENAME);
+        if (!Files.exists(graphFilePath)) {
+            Files.createFile(graphFilePath);
+        }
         Files.writeString(graphFilePath, serializedDotGraph, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
@@ -139,18 +168,61 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
             return;
         }
 
-        ReceiveActionNode receiveActionNode;
         ExpressionNode initializer = varDclNode.initializer().get();
         if (initializer.kind() == SyntaxKind.CHECK_ACTION &&
                 ((CheckExpressionNode) initializer).expression().kind() == SyntaxKind.RECEIVE_ACTION) {
             CheckExpressionNode checkExpressionNode = (CheckExpressionNode) initializer;
-            receiveActionNode = (ReceiveActionNode) checkExpressionNode.expression();
+            processReceiveActionNode((ReceiveActionNode) checkExpressionNode.expression(),
+                    curWorkerName, graphBuilder);
         } else if (initializer.kind() == SyntaxKind.RECEIVE_ACTION) {
-            receiveActionNode = (ReceiveActionNode) initializer;
-        } else {
-            return;
+            processReceiveActionNode((ReceiveActionNode) initializer, curWorkerName, graphBuilder);
+        } else if (initializer.kind() == SyntaxKind.WAIT_ACTION) {
+            processWaitActionNode((WaitActionNode) initializer, curWorkerName, graphBuilder);
+        } else if (initializer.kind() == SyntaxKind.CHECK_ACTION && ((CheckExpressionNode) initializer).expression().kind() == SyntaxKind.WAIT_ACTION) {
+            CheckExpressionNode checkExpressionNode = (CheckExpressionNode) initializer;
+            processWaitActionNode((WaitActionNode) checkExpressionNode.expression(), curWorkerName, graphBuilder);
+        }
+    }
+
+    private void processWaitActionNode(WaitActionNode waitActionNode, String curWorkerName,
+                                       DependencyGraphBuilder<String> graphBuilder) {
+        Node exprNode = waitActionNode.waitFutureExpr();
+        if (exprNode instanceof WaitFieldsListNode waitFieldsListNode) {
+            for (Node waitField : waitFieldsListNode.waitFields()) {
+                if (waitField instanceof WaitFieldNode waitFieldNode) {
+                    String fromWorker = waitFieldNode.waitFutureExpr().toSourceCode();
+                    addReceiveDependency(fromWorker, curWorkerName, graphBuilder);
+                } else if (waitField instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
+                    addReceiveDependency(simpleNameReferenceNode.toSourceCode(), curWorkerName, graphBuilder);
+                }
+            }
+        } else if (exprNode instanceof BinaryExpressionNode binaryExpressionNode) {
+            processWaitActionBinaryExprNode(binaryExpressionNode, curWorkerName, graphBuilder);
+        }
+    }
+
+    private void processWaitActionBinaryExprNode(BinaryExpressionNode binaryExpressionNode, String curWorkerName,
+                                                 DependencyGraphBuilder<String> graphBuilder) {
+        if (binaryExpressionNode.lhsExpr() instanceof BinaryExpressionNode lhsBinaryExpressionNode) {
+            processWaitActionBinaryExprNode(lhsBinaryExpressionNode, curWorkerName, graphBuilder);
         }
 
+        if (binaryExpressionNode.rhsExpr() instanceof BinaryExpressionNode rhsBinaryExpressionNode) {
+            processWaitActionBinaryExprNode(rhsBinaryExpressionNode, curWorkerName, graphBuilder);
+        }
+
+        if (binaryExpressionNode.lhsExpr() instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
+            addReceiveDependency(simpleNameReferenceNode.toSourceCode(), curWorkerName, graphBuilder);
+        }
+
+        if (binaryExpressionNode.rhsExpr() instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
+            addReceiveDependency(simpleNameReferenceNode.toSourceCode(), curWorkerName, graphBuilder);
+        }
+    }
+
+    private void processReceiveActionNode(ReceiveActionNode receiveActionNode,
+                                          String curWorkerName,
+                                          DependencyGraphBuilder<String> graphBuilder) {
         Node receiveWorker = receiveActionNode.receiveWorkers();
         if (receiveWorker instanceof SimpleNameReferenceNode) {
             String fromWorker = ((SimpleNameReferenceNode) receiveWorker).name().text();
