@@ -154,7 +154,6 @@ service /healthcare on new http:Listener(9095) {
             PaymentResponse response = check <- MakePayment;
             log:printInfo("PaymentResponse", payload = response);
         }
-        //return runIntegration(category, payload.cloneReadOnly());
 
         PaymentResponse resp = check <- MakePayment;
         return resp;
