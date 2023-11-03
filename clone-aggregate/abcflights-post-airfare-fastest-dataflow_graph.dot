@@ -1,0 +1,20 @@
+digraph "DataflowGraph" {
+node [shape=record];
+"CreateAmericanFareRequest" -> "GetAmericanTotalFare";
+"GetDeltaTotalFare" -> "TransformDeltaFareResponse";
+"TransformDeltaFareResponse " -> "FindFastestFareResponse";
+"CreateDeltaFareRequest" -> "GetDeltaTotalFare";
+"GetAmericanTotalFare" -> "TransformAmericanFareResponse";
+"FindFastestFareResponse" -> "LogAirfareResponse";
+"FindFastestFareResponse" -> "FunctionEnd";
+"GetAlaskaTotalFare" -> "TransformAlaskaFareResponse";
+"FunctionStart" -> "CreateAmericanFareRequest";
+"FunctionStart" -> "LogAirfareRequest";
+"FunctionStart" -> "TransformAlaskaFareResponse ";
+"FunctionStart" -> "TransformDeltaFareResponse ";
+"FunctionStart" -> "CreateDeltaFareRequest";
+"FunctionStart" -> "CreateAlaskaFareRequest";
+"TransformAlaskaFareResponse " -> "FindFastestFareResponse";
+"TransformAmericanFareResponse" -> "FindFastestFareResponse";
+"CreateAlaskaFareRequest" -> "GetAlaskaTotalFare";
+}
