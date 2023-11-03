@@ -10,9 +10,6 @@ import io.ballerina.projects.util.ProjectPaths;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.FileAttribute;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.StringJoiner;
 
 public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisContext> {
@@ -41,10 +38,13 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
 
         StringJoiner joiner = new StringJoiner("-");
         if (funcDefNode.parent() instanceof ServiceDeclarationNode svcDeclNode) {
-            joiner.add(convertNodeListToFileNamePart(svcDeclNode.absoluteResourcePath()));
+            String svcName = convertNodeListToFileNamePart(svcDeclNode.absoluteResourcePath());
+            if (!svcName.isEmpty()) {
+                joiner.add(svcName);
+            }
         }
         String funcName = funcDefNode.functionName().toSourceCode();
-        joiner.add(convertToFileNamePart(funcName));
+        joiner.add(convertToFileNamePart(funcName).trim());
         joiner.add(convertNodeListToFileNamePart(funcDefNode.relativeResourcePath()));
         return joiner.toString();
     }
@@ -52,7 +52,7 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
     private String convertNodeListToFileNamePart(NodeList<Node> nodeList) {
         StringJoiner joiner = new StringJoiner("-");
         for (Node node : nodeList) {
-            String path = node.toSourceCode();
+            String path = node.toSourceCode().trim();
             if (path.equals("/")) {
                 continue;
             }
