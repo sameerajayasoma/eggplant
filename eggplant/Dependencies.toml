@@ -10,7 +10,7 @@ distribution-version = "2201.8.2"
 [[package]]
 org = "samjs"
 name = "eggplant"
-version = "0.1.0"
+version = "0.2.0"
 modules = [
 	{org = "samjs", packageName = "eggplant", moduleName = "eggplant"}
 ]
