@@ -190,10 +190,10 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
         if (exprNode instanceof WaitFieldsListNode waitFieldsListNode) {
             for (Node waitField : waitFieldsListNode.waitFields()) {
                 if (waitField instanceof WaitFieldNode waitFieldNode) {
-                    String fromWorker = waitFieldNode.waitFutureExpr().toSourceCode();
+                    String fromWorker = waitFieldNode.waitFutureExpr().toSourceCode().trim();
                     addReceiveDependency(fromWorker, curWorkerName, graphBuilder);
                 } else if (waitField instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
-                    addReceiveDependency(simpleNameReferenceNode.toSourceCode(), curWorkerName, graphBuilder);
+                    addReceiveDependency(simpleNameReferenceNode.toSourceCode().trim(), curWorkerName, graphBuilder);
                 }
             }
         } else if (exprNode instanceof BinaryExpressionNode binaryExpressionNode) {
@@ -212,11 +212,11 @@ public class WorkerAnalysisTask<T> implements AnalysisTask<SyntaxNodeAnalysisCon
         }
 
         if (binaryExpressionNode.lhsExpr() instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
-            addReceiveDependency(simpleNameReferenceNode.toSourceCode(), curWorkerName, graphBuilder);
+            addReceiveDependency(simpleNameReferenceNode.toSourceCode().trim(), curWorkerName, graphBuilder);
         }
 
         if (binaryExpressionNode.rhsExpr() instanceof SimpleNameReferenceNode simpleNameReferenceNode) {
-            addReceiveDependency(simpleNameReferenceNode.toSourceCode(), curWorkerName, graphBuilder);
+            addReceiveDependency(simpleNameReferenceNode.toSourceCode().trim(), curWorkerName, graphBuilder);
         }
     }
 
