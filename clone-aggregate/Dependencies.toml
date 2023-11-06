@@ -317,7 +317,7 @@ modules = [
 [[package]]
 org = "samjs"
 name = "eggplant"
-version = "0.2.0"
+version = "0.2.2"
 modules = [
 	{org = "samjs", packageName = "eggplant", moduleName = "eggplant"}
 ]
