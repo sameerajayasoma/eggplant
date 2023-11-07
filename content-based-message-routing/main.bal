@@ -1,5 +1,6 @@
 import ballerina/http;
 import ballerina/log;
+
 import samjs/eggplant as _;
 
 configurable int port = 8290;
@@ -57,15 +58,16 @@ type ReservationResponse record {|
     string appointmentDate;
 |};
 
+type NoMessageError distinct error;
+
 service /healthcare on new http:Listener(port) {
 
-    isolated resource function post categories/[string category]/reserve(ReservationRequest payload)
+    resource function post categories/[string category]/reserve(ReservationRequest payload)
             returns ReservationResponse|http:NotFound|http:InternalServerError {
-
         final var reservationReq = payload.cloneReadOnly();
 
         worker LogReservationRequestDetails {
-            log:printInfo("Routing reservation request",
+            log:printInfo("Reservation request received",
                         hospital_id = reservationReq.hospital_id,
                         patient = reservationReq.patient.name,
                         doctor = reservationReq.doctor);
@@ -79,65 +81,51 @@ service /healthcare on new http:Listener(port) {
         worker RouteToEndpointBasedOnHospitalId {
             Reservation reservation = <- CreateOutgoingPayload;
             string hospitalId = reservationReq.hospital_id;
-            boolean isGrandOak = false;
-            boolean isClemency = false;
-            boolean isPineValley = false;
+
+            Reservation|NoMessageError grandOakSend = error("");
+            Reservation|NoMessageError clemencySend = error("");
+            Reservation|NoMessageError pineValleySend = error("");
 
             match hospitalId {
                 GRAND_OAK => {
-                    isGrandOak = true;
+                    grandOakSend = reservation;
                 }
                 CLEMENCY => {
-                    isClemency = true;
+                    clemencySend = reservation;
                 }
                 PINE_VALLEY => {
-                    isPineValley = true;
+                    pineValleySend = reservation;
                 }
             }
 
-            // Trigger all the workers in parallel
-            [isGrandOak, isClemency, isPineValley, reservation] -> PostRequestToGrandOakEp;
-            [isGrandOak, isClemency, isPineValley, reservation] -> PostRequestToClemencyEP;
-            [isGrandOak, isClemency, isPineValley, reservation] -> PostRequestToPineValleyEP;
+            grandOakSend -> PostRequestToGrandOakEp;
+            clemencySend -> PostRequestToClemencyEP;
+            pineValleySend -> PostRequestToPineValleyEP;
         }
 
-        worker PostRequestToGrandOakEp returns error? {
-            [boolean, boolean, boolean, Reservation] [isGrandOak, _, _, reservation] = <- RouteToEndpointBasedOnHospitalId;
-            ReservationResponse? resp = ();
-            if isGrandOak {
-                resp = check grandOakEP->/[category]/reserve.post(reservation);
-            }
-            resp -> CollectResponse;
+        worker PostRequestToGrandOakEp returns ReservationResponse|error {
+            Reservation reservation = check <- RouteToEndpointBasedOnHospitalId;
+            log:printInfo("Sending reservation request to Grand Oak");
+            return grandOakEP->/[category]/reserve.post(reservation);
         }
 
-        worker PostRequestToClemencyEP returns error? {
-            [boolean, boolean, boolean, Reservation] [_, isClemency, _, reservation] = <- RouteToEndpointBasedOnHospitalId;
-            ReservationResponse? resp = ();
-            if isClemency {
-                resp = check clemencyEP->/[category]/reserve.post(reservation);
-            }
-            resp -> CollectResponse;
+        worker PostRequestToClemencyEP returns ReservationResponse|error {
+            Reservation reservation = check <- RouteToEndpointBasedOnHospitalId;
+            log:printInfo("Sending reservation request to Clemency");
+            return clemencyEP->/[category]/reserve.post(reservation);
         }
 
-        worker PostRequestToPineValleyEP returns error? {
-            [boolean, boolean, boolean, Reservation] [_, _, isPineValley, reservation] = <- RouteToEndpointBasedOnHospitalId;
-            ReservationResponse? resp = ();
-            if isPineValley {
-                resp = check pineValleyEP->/[category]/reserve.post(reservation);
-            }
-            resp -> CollectResponse;
+        worker PostRequestToPineValleyEP returns ReservationResponse|error {
+            Reservation reservation = check <- RouteToEndpointBasedOnHospitalId;
+            log:printInfo("Sending reservation request to Pine Valley");
+            return pineValleyEP->/[category]/reserve.post(reservation);
         }
 
         worker CollectResponse returns error? {
-            ReservationResponse? grandOakResp = check <- PostRequestToGrandOakEp;
-            ReservationResponse? clemencyResp = check <- PostRequestToClemencyEP;
-            ReservationResponse? PineValleyResp = check <- PostRequestToPineValleyEP;
-            ReservationResponse resp = grandOakResp !is () ? grandOakResp : clemencyResp !is () ? clemencyResp : <ReservationResponse>PineValleyResp;
+            ReservationResponse|error resp = wait PostRequestToGrandOakEp | PostRequestToClemencyEP | PostRequestToPineValleyEP;
             resp -> function;
         }
 
-        // TODO The following error handling logic is available in the original Ballerina sample. 
-        // We need to figure out a way to handle this using workers.
         ReservationResponse|error resp = <- CollectResponse;
         if resp is http:ClientRequestError {
             return <http:NotFound>{body: "Unknown hospital, doctor or category"};
