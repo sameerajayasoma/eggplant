@@ -1,0 +1,81 @@
+{
+    "id": "SwitchBasedOnAge",
+    "templateId": "SwitchNode",
+    "inputPorts": [
+        {
+            "id": "input1",
+            "type": "json",
+            "name": "payload",
+            "sender": "TransformPayload"
+        },
+        {
+            "id": "input2",
+            "type": "int",
+            "name": "baseAge",
+            "sender": "DerriveAgeFromDB"
+        }
+    ],
+    "outputPorts": [
+        {
+            "id": "output1",
+            "type": "json",
+            "receiver": "nextNodeIdCase1"
+        },
+        {
+            "id": "output2",
+            "type": "json",
+            "receiver": "nextNodeIdCase2"
+        },
+        {
+            "id": "outputDefault",
+            "type": "json",
+            "receiver": "nextNodeIdDefault"
+        }
+    ],
+    "location": {
+        "filename": "integration.bal",
+        "startLine": {
+            "line": 10,
+            "column": 5
+        },
+        "endLine": {
+            "line": 15,
+            "column": 5
+        }
+    },
+    "properties": {
+        "templateId": "SwitchNode",
+        "name": "SwitchBasedOnAge",
+        "cases": [
+            {
+                "expression": "check payload.age > baseAge",
+                "nodes": [
+                    {
+                        "id": "output1",
+                        "type": "json",
+                        "receiver": "ProcessSeniorCitizen"
+                    }
+                ]
+            },
+            {
+                "expression": "check payload.age < baseAge",
+                "nodes": [
+                    {
+                        "id": "output2",
+                        "type": "json",
+                        "receiver": "ProcessYoungCitizen"
+                    }
+                ]
+            }
+        ],
+        "defaultCase": {
+            "nodes": [
+                {
+                    "id": "outputDefault",
+                    "type": "json",
+                    "receiver": "ProcessDefaultCitizen"
+                }
+            ]
+        }
+    }
+}
