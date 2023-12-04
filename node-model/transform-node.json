@@ -19,17 +19,17 @@
         {
             "id": "output1",
             "type": "json",
-            "receiver": "nextNodeIdCase1"
+            "receiver": "ProcessSeniorCitizen"
         },
         {
             "id": "output2",
             "type": "json",
-            "receiver": "nextNodeIdCase2"
+            "receiver": "ProcessYoungCitizen"
         },
         {
             "id": "outputDefault",
             "type": "json",
-            "receiver": "nextNodeIdDefault"
+            "receiver": "ProcessDefaultCitizen"
         }
     ],
     "location": {
@@ -49,33 +49,15 @@
         "cases": [
             {
                 "expression": "check payload.age > baseAge",
-                "nodes": [
-                    {
-                        "id": "output1",
-                        "type": "json",
-                        "receiver": "ProcessSeniorCitizen"
-                    }
-                ]
+                "nodes": ["output1"]
             },
             {
                 "expression": "check payload.age < baseAge",
-                "nodes": [
-                    {
-                        "id": "output2",
-                        "type": "json",
-                        "receiver": "ProcessYoungCitizen"
-                    }
-                ]
+                "nodes": ["output2"]
             }
         ],
         "defaultCase": {
-            "nodes": [
-                {
-                    "id": "outputDefault",
-                    "type": "json",
-                    "receiver": "ProcessDefaultCitizen"
-                }
-            ]
+            "nodes": ["outputDefault"]
         }
     }
 }
