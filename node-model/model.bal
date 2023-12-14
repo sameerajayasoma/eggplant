@@ -4,6 +4,7 @@ type Flow record {|
     string name;
     Node[] nodes;
     string balFilename;
+    CodeLocation bodyCodeLocation;
 |};
 
 type Node record {|
@@ -26,6 +27,7 @@ type InputPort record {|
 type OutputPort record {|
     string id;
     string 'type;
+    string name?;
     string receiver;
 |};
 
@@ -41,7 +43,7 @@ type CanvasPosition record {|
 
 type LinePosition record {|
     int line;
-    int column;
+    int offset;
 |};
 
 type NodeProperties record {|
