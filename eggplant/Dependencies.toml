@@ -5,12 +5,12 @@
 
 [ballerina]
 dependencies-toml-version = "2"
-distribution-version = "2201.8.2"
+distribution-version = "2201.8.4"
 
 [[package]]
 org = "samjs"
 name = "eggplant"
-version = "0.2.2"
+version = "0.2.4"
 modules = [
 	{org = "samjs", packageName = "eggplant", moduleName = "eggplant"}
 ]
