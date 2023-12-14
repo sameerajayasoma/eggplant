@@ -16,7 +16,7 @@ type ModifyNodeProperties record {|
     *NodeProperties;
     "ModifyNode" templateId = "ModifyNode";
     string outputType?;
-    BalExpression expression; // Should we support multiple expressions?
+    BalExpression[] expressions; 
 |};
 
 type FilterNodeProperties record {|
