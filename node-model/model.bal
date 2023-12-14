@@ -55,3 +55,8 @@ type BalExpression record {|
     string expression;
     CodeLocation location;
 |};
+
+type CodeBlock record {|
+    string code;
+    CodeLocation location;
+|};
