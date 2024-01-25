@@ -1,0 +1,9 @@
+digraph "DataflowGraph" {
+node [shape=record];
+"StartNode" -> "TransformNode";
+"ResponseNode" -> "FunctionEnd";
+"FunctionStart" -> "StartNode";
+"TransformNode" -> "HttpPostNode";
+"HttpPostNode" -> "LogNode";
+"HttpPostNode" -> "ResponseNode";
+}
